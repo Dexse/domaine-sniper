@@ -350,21 +350,18 @@ app.get('/api/logs', async (req, res) => {
 // Routes pour servir les pages
 app.get('/', (req, res) => {
   try {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    console.log('Tentative de service de:', indexPath);
-    
-    // Vérifier si le fichier existe
-    const fs = require('fs');
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      console.error('Fichier index.html non trouvé à:', indexPath);
-      res.status(404).send(`
-        <h1>Fichier non trouvé</h1>
-        <p>Le fichier index.html n'existe pas à: ${indexPath}</p>
-        <p><a href="/test">Tester le serveur</a></p>
-      `);
-    }
+    console.log('Serving index.html from:', path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
+      if (err) {
+        console.error('Erreur lors du service de index.html:', err);
+        res.status(500).send(`
+          <h1>Erreur serveur</h1>
+          <p>Impossible de charger index.html</p>
+          <p>Erreur: ${err.message}</p>
+          <p><a href="/test">Tester le serveur</a></p>
+        `);
+      }
+    });
   } catch (error) {
     console.error('Erreur lors du service de index.html:', error);
     res.status(500).send(`
