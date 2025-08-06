@@ -41,7 +41,7 @@ function initializeServices() {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Variables globales pour le monitoring
 let isMonitoring = false;
@@ -341,7 +341,12 @@ app.get('/api/logs', async (req, res) => {
 
 // Routes pour servir les pages
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  try {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  } catch (error) {
+    console.error('Erreur lors du service de index.html:', error);
+    res.status(500).send('Erreur serveur');
+  }
 });
 
 // Test de connexion OVH
@@ -380,11 +385,30 @@ app.get('/api/test-ovh', async (req, res) => {
 });
 
 app.get('/analytics', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'analytics.html'));
+  try {
+    res.sendFile(path.join(__dirname, 'public', 'analytics.html'));
+  } catch (error) {
+    console.error('Erreur lors du service de analytics.html:', error);
+    res.status(500).send('Erreur serveur');
+  }
 });
 
 app.get('/purchases', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'purchases.html'));
+  try {
+    res.sendFile(path.join(__dirname, 'public', 'purchases.html'));
+  } catch (error) {
+    console.error('Erreur lors du service de purchases.html:', error);
+    res.status(500).send('Erreur serveur');
+  }
+});
+
+// Route de test simple
+app.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Serveur fonctionne !', 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV 
+  });
 });
 
 // Démarrage du serveur
