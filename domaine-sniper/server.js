@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const Database = require('./database');
 const OVHClient = require('./ovhClient');
 require('dotenv').config();
@@ -8,23 +9,24 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialisation différée pour Railway
+// Variables globales
 let db;
 let ovhClient;
+let isMonitoring = false;
+let monitoringInterval = null;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
 
 // Fonction d'initialisation
 function initializeServices() {
   try {
-    // Vérification des variables d'environnement OVH
     const requiredEnvVars = ['OVH_APP_KEY', 'OVH_APP_SECRET', 'OVH_CONSUMER_KEY'];
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
     
     if (missingVars.length > 0) {
-      console.error('❌ Variables d\'environnement OVH manquantes:');
-      missingVars.forEach(varName => {
-        console.error(`   - ${varName}`);
-      });
-      console.error('\n💡 Veuillez configurer ces variables dans Railway');
+      console.error('❌ Variables d\'environnement OVH manquantes:', missingVars);
       return false;
     }
     
@@ -38,36 +40,21 @@ function initializeServices() {
   }
 }
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Servir les fichiers statiques avec gestion d'erreur
-app.use(express.static(path.join(__dirname, 'public'), {
-  setHeaders: (res, path) => {
-    if (path.endsWith('.html')) {
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    }
-  }
-}));
-
-// Variables globales pour le monitoring
-let isMonitoring = false;
-let monitoringInterval = null;
-
-// Fonction pour logger avec base de données
+// Fonction de logging
 async function logMessage(level, message, domain = null) {
   console.log(`[${new Date().toLocaleString()}] ${level.toUpperCase()}: ${message}`);
   try {
-    await db.addLog(level, message, domain);
+    if (db) await db.addLog(level, message, domain);
   } catch (error) {
     console.error('Erreur lors de l\'ajout du log:', error);
   }
 }
 
-// Fonction de monitoring des domaines
+// Fonction de monitoring
 async function monitorDomains() {
   try {
+    if (!db || !ovhClient) return;
+    
     const domains = await db.getAllDomains();
     const activeDomains = domains.filter(d => d.monitoring_enabled);
     
@@ -80,7 +67,6 @@ async function monitorDomains() {
 
     for (const domain of activeDomains) {
       try {
-        // D'abord récupérer les informations d'expiration
         const expirationInfo = await ovhClient.getDomainExpirationInfo(domain.domain);
         if (expirationInfo) {
           await db.updateDomainExpirationInfo(
@@ -93,15 +79,12 @@ async function monitorDomains() {
         }
         
         const isAvailable = await ovhClient.isDomainAvailable(domain.domain);
-        
-        // Enregistrer la vérification
         await db.addDomainCheck(domain.id, isAvailable ? 'available' : 'unavailable', isAvailable);
         
         if (isAvailable) {
           await logMessage('success', `🎯 DOMAINE DISPONIBLE: ${domain.domain}`, domain.domain);
           await db.updateDomainStatus(domain.id, 'available');
           
-          // Achat automatique si activé
           if (domain.auto_purchase_enabled) {
             await logMessage('info', `Tentative d'achat automatique pour ${domain.domain}...`, domain.domain);
             
@@ -121,7 +104,6 @@ async function monitorDomains() {
           await logMessage('info', `${domain.domain} - Non disponible`, domain.domain);
         }
         
-        // Délai entre les vérifications
         await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (error) {
@@ -137,9 +119,64 @@ async function monitorDomains() {
   }
 }
 
-// Routes API
+// Routes statiques - SERVIR LES FICHIERS HTML DIRECTEMENT
+app.get('/', (req, res) => {
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  console.log('Tentative de service de:', indexPath);
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    console.error('Fichier index.html non trouvé à:', indexPath);
+    res.status(404).send(`
+      <h1>Fichier non trouvé</h1>
+      <p>Le fichier index.html n'existe pas à: ${indexPath}</p>
+      <p><a href="/test">Tester le serveur</a></p>
+    `);
+  }
+});
 
-// Dashboard - Statistiques générales
+app.get('/analytics', (req, res) => {
+  const analyticsPath = path.join(__dirname, 'public', 'analytics.html');
+  if (fs.existsSync(analyticsPath)) {
+    res.sendFile(analyticsPath);
+  } else {
+    res.status(404).send('<h1>Analytics non disponible</h1><p><a href="/">Retour</a></p>');
+  }
+});
+
+app.get('/purchases', (req, res) => {
+  const purchasesPath = path.join(__dirname, 'public', 'purchases.html');
+  if (fs.existsSync(purchasesPath)) {
+    res.sendFile(purchasesPath);
+  } else {
+    res.status(404).send('<h1>Purchases non disponible</h1><p><a href="/">Retour</a></p>');
+  }
+});
+
+// Route de test
+app.get('/test', (req, res) => {
+  const publicPath = path.join(__dirname, 'public');
+  let files = [];
+  
+  try {
+    files = fs.readdirSync(publicPath);
+  } catch (e) {
+    files = ['Erreur lecture dossier: ' + e.message];
+  }
+  
+  res.json({ 
+    message: 'Serveur fonctionne !', 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV,
+    publicPath: publicPath,
+    files: files,
+    indexExists: fs.existsSync(path.join(publicPath, 'index.html')),
+    servicesInitialized: !!(db && ovhClient)
+  });
+});
+
+// Routes API
 app.get('/api/dashboard', async (req, res) => {
   try {
     if (!db || !ovhClient) {
@@ -150,7 +187,6 @@ app.get('/api/dashboard', async (req, res) => {
     const purchases = await db.getAllPurchases();
     const logs = await db.getRecentLogs(10);
     
-    // Récupérer le solde OVH
     const balanceInfo = await ovhClient.getAccountBalance();
     
     const stats = {
@@ -169,7 +205,6 @@ app.get('/api/dashboard', async (req, res) => {
   }
 });
 
-// Gestion des domaines
 app.get('/api/domains', async (req, res) => {
   try {
     if (!db) {
@@ -242,7 +277,6 @@ app.delete('/api/domains/:id', async (req, res) => {
   }
 });
 
-// Contrôle du monitoring
 app.post('/api/monitoring/start', async (req, res) => {
   try {
     if (!db || !ovhClient) {
@@ -256,10 +290,7 @@ app.post('/api/monitoring/start', async (req, res) => {
     isMonitoring = true;
     await logMessage('success', '🚀 Démarrage du monitoring automatique');
     
-    // Première vérification immédiate
     await monitorDomains();
-    
-    // Programmer les vérifications périodiques (60 secondes)
     monitoringInterval = setInterval(monitorDomains, 60000);
     
     res.json({ message: 'Monitoring démarré' });
@@ -301,7 +332,6 @@ app.post('/api/monitoring/check', async (req, res) => {
   }
 });
 
-// Analytics
 app.get('/api/analytics', async (req, res) => {
   try {
     if (!db) {
@@ -319,7 +349,6 @@ app.get('/api/analytics', async (req, res) => {
   }
 });
 
-// Achats
 app.get('/api/purchases', async (req, res) => {
   try {
     if (!db) {
@@ -333,7 +362,6 @@ app.get('/api/purchases', async (req, res) => {
   }
 });
 
-// Logs
 app.get('/api/logs', async (req, res) => {
   try {
     if (!db) {
@@ -347,32 +375,6 @@ app.get('/api/logs', async (req, res) => {
   }
 });
 
-// Routes pour servir les pages
-app.get('/', (req, res) => {
-  try {
-    console.log('Serving index.html from:', path.join(__dirname, 'public', 'index.html'));
-    res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
-      if (err) {
-        console.error('Erreur lors du service de index.html:', err);
-        res.status(500).send(`
-          <h1>Erreur serveur</h1>
-          <p>Impossible de charger index.html</p>
-          <p>Erreur: ${err.message}</p>
-          <p><a href="/test">Tester le serveur</a></p>
-        `);
-      }
-    });
-  } catch (error) {
-    console.error('Erreur lors du service de index.html:', error);
-    res.status(500).send(`
-      <h1>Erreur serveur</h1>
-      <p>Erreur: ${error.message}</p>
-      <p><a href="/test">Tester le serveur</a></p>
-    `);
-  }
-});
-
-// Test de connexion OVH
 app.get('/api/test-ovh', async (req, res) => {
   try {
     if (!ovhClient) {
@@ -380,17 +382,9 @@ app.get('/api/test-ovh', async (req, res) => {
     }
     
     console.log('🔍 Début du test de connexion OVH...');
-    console.log('📋 Variables d\'environnement:', {
-      OVH_APP_KEY: process.env.OVH_APP_KEY ? '✅ Défini' : '❌ Manquant',
-      OVH_APP_SECRET: process.env.OVH_APP_SECRET ? '✅ Défini' : '❌ Manquant',
-      OVH_CONSUMER_KEY: process.env.OVH_CONSUMER_KEY ? '✅ Défini' : '❌ Manquant'
-    });
     
     const connectionTest = await ovhClient.testConnection();
-    console.log('🔗 Résultat test connexion:', connectionTest);
-    
     const balanceInfo = await ovhClient.getAccountBalance();
-    console.log('💰 Résultat test solde:', balanceInfo);
     
     res.json({
       connection: connectionTest,
@@ -407,59 +401,10 @@ app.get('/api/test-ovh', async (req, res) => {
   }
 });
 
-app.get('/analytics', (req, res) => {
-  try {
-    const analyticsPath = path.join(__dirname, 'public', 'analytics.html');
-    const fs = require('fs');
-    if (fs.existsSync(analyticsPath)) {
-      res.sendFile(analyticsPath);
-    } else {
-      res.status(404).send('<h1>Analytics non disponible</h1><p><a href="/">Retour</a></p>');
-    }
-  } catch (error) {
-    console.error('Erreur lors du service de analytics.html:', error);
-    res.status(500).send('<h1>Erreur serveur</h1><p><a href="/">Retour</a></p>');
-  }
-});
-
-app.get('/purchases', (req, res) => {
-  try {
-    const purchasesPath = path.join(__dirname, 'public', 'purchases.html');
-    const fs = require('fs');
-    if (fs.existsSync(purchasesPath)) {
-      res.sendFile(purchasesPath);
-    } else {
-      res.status(404).send('<h1>Purchases non disponible</h1><p><a href="/">Retour</a></p>');
-    }
-  } catch (error) {
-    console.error('Erreur lors du service de purchases.html:', error);
-    res.status(500).send('<h1>Erreur serveur</h1><p><a href="/">Retour</a></p>');
-  }
-});
-
-// Route de test simple
-app.get('/test', (req, res) => {
-  res.json({ 
-    message: 'Serveur fonctionne !', 
-    timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV,
-    publicPath: path.join(__dirname, 'public'),
-    files: (() => {
-      try {
-        const fs = require('fs');
-        return fs.readdirSync(path.join(__dirname, 'public'));
-      } catch (e) {
-        return 'Erreur lecture dossier public: ' + e.message;
-      }
-    })()
-  });
-});
-
 // Démarrage du serveur
 app.listen(PORT, async () => {
   console.log(`🌐 Serveur démarré sur le port ${PORT}`);
   
-  // Initialiser les services après le démarrage du serveur
   const initialized = initializeServices();
   
   if (initialized) {
@@ -473,8 +418,8 @@ app.listen(PORT, async () => {
 ║                    🎯 DOMAINE SNIPER SAAS                   ║
 ║                                                              ║
 ║  Status: ${initialized ? '✅ Prêt' : '⚠️ Variables manquantes'}                                    ║
-║                                                              ║
 ║  Port: ${PORT}                                                ║
+║  Public: ${path.join(__dirname, 'public')}                   ║
 ╚══════════════════════════════════════════════════════════════╝
   `);
 });
