@@ -1,0 +1,31 @@
+{
+  "name": "domaine-sniper",
+  "version": "1.0.0",
+  "description": "Surveillance et achat automatique de domaines expirés avec OVH et notifications Slack",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "cli": "node index.js",
+    "generate-key": "node getConsumerKey.js",
+    "build": "echo 'Build completed - static files ready'",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "domaine",
+    "ovh",
+    "slack",
+    "surveillance",
+    "achat-automatique"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "ovh": "^2.0.1",
+    "sqlite3": "^5.1.7"
+  }
+}

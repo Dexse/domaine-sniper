@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domaine Sniper - Achats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary: #64748b;
+            --accent: #0ea5e9;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --surface-hover: #f1f5f9;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 1rem 0;
+        }
+
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+
+        .nav-section-title {
+            padding: 0 1.5rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 0 1rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            background: var(--surface-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-link.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .header-title h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .header-title p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            padding: 1.5rem 1.5rem 0;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-content {
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--surface-hover);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Forms */
+        .form-input, .form-select {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            background: var(--surface);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+        }
+
+        .table th,
+        .table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .table th {
+            background: var(--surface-hover);
+            font-weight: 600;
+            color: var(--text-primary);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .table tr {
+            transition: all 0.2s ease;
+        }
+
+        .table tr:hover {
+            background: var(--surface-hover);
+        }
+
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Status badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .status-failed {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+        }
+
+        /* Purchase details */
+        .purchase-details {
+            display: none;
+            background: var(--surface-hover);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-top: 0.5rem;
+            border-left: 3px solid var(--primary);
+        }
+
+        .purchase-details.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 200px;
+            }
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .detail-value {
+            color: var(--text-primary);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px;
+            }
+
+            .main-content {
+                margin-left: 240px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .header {
+                padding: 1rem;
+            }
+
+            .table th,
+            .table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.875rem;
+            }
+
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-crosshairs"></i>
+                </div>
+                <span>Domaine Sniper</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Principal</div>
+                <div class="nav-links">
+                    <a href="/" class="nav-link">
+                        <div class="nav-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/analytics" class="nav-link">
+                        <div class="nav-icon">
+                            <i class="fas fa-analytics"></i>
+                        </div>
+                        <span>Analytics</span>
+                    </a>
+                    <a href="/purchases" class="nav-link active">
+                        <div class="nav-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <span>Achats</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-title">
+                    <h1>Achats de Domaines</h1>
+                    <p>Historique complet et gestion de tous vos achats automatiques</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Container -->
+        <div class="container">
+            <!-- Purchase Stats -->
+            <div class="card fade-in">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Statistiques des Achats
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <div class="stats-grid" id="purchaseStats">
+                        <!-- Les statistiques seront chargées ici -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card fade-in">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-filter"></i>
+                        Filtres et Recherche
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <div class="filters">
+                        <select id="statusFilter" class="form-select">
+                            <option value="">Tous les statuts</option>
+                            <option value="completed">Complété</option>
+                            <option value="pending">En attente</option>
+                            <option value="failed">Échoué</option>
+                        </select>
+                        <input type="date" id="dateFromFilter" class="form-input" placeholder="Date de début">
+                        <input type="date" id="dateToFilter" class="form-input" placeholder="Date de fin">
+                        <button onclick="applyFilters()" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                            Filtrer
+                        </button>
+                        <button onclick="clearFilters()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i>
+                            Effacer
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Purchases List -->
+            <div class="card fade-in">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-list"></i>
+                        Liste des Achats
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <div class="table-container">
+                        <table class="table" id="purchasesTable">
+                            <thead>
+                                <tr>
+                                    <th>Domaine</th>
+                                    <th>Date d'achat</th>
+                                    <th>Statut</th>
+                                    <th>ID Commande</th>
+                                    <th>Prix</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchasesTableBody">
+                                <!-- Les achats seront chargés ici -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="empty-state" id="emptyState" style="display: none;">
+                        <i class="fas fa-shopping-cart" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <h3>Aucun achat pour le moment</h3>
+                        <p>Les domaines achetés automatiquement apparaîtront ici dès qu'ils seront disponibles</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let allPurchases = [];
+        let filteredPurchases = [];
+
+        async function loadPurchases() {
+            try {
+                const response = await fetch('/api/purchases');
+                allPurchases = await response.json();
+                filteredPurchases = [...allPurchases];
+
+                updatePurchaseStats();
+                displayPurchases();
+
+            } catch (error) {
+                console.error('Erreur lors du chargement des achats:', error);
+                showNotification('Erreur lors du chargement des données', 'error');
+            }
+        }
+
+        function updatePurchaseStats() {
+            const container = document.getElementById('purchaseStats');
+
+            const totalPurchases = allPurchases.length;
+            const completedPurchases = allPurchases.filter(p => p.status === 'completed').length;
+            const pendingPurchases = allPurchases.filter(p => p.status === 'pending').length;
+            const failedPurchases = allPurchases.filter(p => p.status === 'failed').length;
+
+            const totalSpent = allPurchases
+                .filter(p => p.price && p.status === 'completed')
+                .reduce((sum, p) => sum + parseFloat(p.price || 0), 0);
+
+            container.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${totalPurchases}</div>
+                    <div class="stat-label">Total Achats</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${completedPurchases}</div>
+                    <div class="stat-label">Complétés</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${pendingPurchases}</div>
+                    <div class="stat-label">En Attente</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${failedPurchases}</div>
+                    <div class="stat-label">Échoués</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${totalSpent.toFixed(2)}€</div>
+                    <div class="stat-label">Total Dépensé</div>
+                </div>
+            `;
+        }
+
+        function displayPurchases() {
+            const tableBody = document.getElementById('purchasesTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const table = document.getElementById('purchasesTable');
+
+            if (filteredPurchases.length === 0) {
+                table.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            table.style.display = 'table';
+            emptyState.style.display = 'none';
+
+            tableBody.innerHTML = '';
+
+            filteredPurchases.forEach((purchase, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <strong style="color: var(--text-primary);">${purchase.domain_name}</strong>
+                        <div class="purchase-details" id="details-${index}">
+                            <div class="detail-row">
+                                <span class="detail-label">ID Domaine:</span>
+                                <span class="detail-value">${purchase.domain_id || 'N/A'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Date complète:</span>
+                                <span class="detail-value">${new Date(purchase.purchase_date).toLocaleString('fr-FR')}</span>
+                            </div>
+                            ${purchase.notes ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Notes:</span>
+                                    <span class="detail-value">${purchase.notes}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </td>
+                    <td style="color: var(--text-secondary);">${new Date(purchase.purchase_date).toLocaleDateString('fr-FR')}</td>
+                    <td>
+                        <span class="status-badge status-${purchase.status}">
+                            ${getStatusText(purchase.status)}
+                        </span>
+                    </td>
+                    <td style="color: var(--text-secondary);">${purchase.order_id || 'N/A'}</td>
+                    <td style="color: var(--text-primary); font-weight: 600;">${purchase.price ? purchase.price + '€' : 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="toggleDetails(${index})" style="padding: 0.5rem 1rem; font-size: 0.75rem;">
+                            <i class="fas fa-info-circle"></i>
+                            Détails
+                        </button>
+                    </td>
+                `;
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function toggleDetails(index) {
+            const details = document.getElementById(`details-${index}`);
+            details.classList.toggle('show');
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'completed': 'Complété',
+                'pending': 'En attente',
+                'failed': 'Échoué'
+            };
+            return statusMap[status] || status;
+        }
+
+        function applyFilters() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const dateFromFilter = document.getElementById('dateFromFilter').value;
+            const dateToFilter = document.getElementById('dateToFilter').value;
+
+            filteredPurchases = allPurchases.filter(purchase => {
+                // Filtre par statut
+                if (statusFilter && purchase.status !== statusFilter) {
+                    return false;
+                }
+
+                // Filtre par date
+                const purchaseDate = new Date(purchase.purchase_date).toISOString().split('T')[0];
+
+                if (dateFromFilter && purchaseDate < dateFromFilter) {
+                    return false;
+                }
+
+                if (dateToFilter && purchaseDate > dateToFilter) {
+                    return false;
+                }
+
+                return true;
+            });
+
+            displayPurchases();
+            showNotification(`${filteredPurchases.length} achat(s) trouvé(s)`, 'info');
+        }
+
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('dateFromFilter').value = '';
+            document.getElementById('dateToFilter').value = '';
+
+            filteredPurchases = [...allPurchases];
+            displayPurchases();
+            showNotification('Filtres effacés', 'info');
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 1rem;
+                right: 1rem;
+                padding: 1rem 1.5rem;
+                border-radius: var(--radius-lg);
+                color: white;
+                font-weight: 500;
+                z-index: 1000;
+                box-shadow: var(--shadow-lg);
+                animation: slideInNotification 0.3s ease;
+                max-width: 400px;
+            `;
+
+            const colors = {
+                success: 'var(--success)',
+                error: 'var(--error)',
+                warning: 'var(--warning)',
+                info: 'var(--primary)'
+            };
+
+            notification.style.background = colors[type] || colors.info;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideOutNotification 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialisation
+        loadPurchases();
+
+        // Mise à jour automatique toutes les 30 secondes
+        setInterval(loadPurchases, 30000);
+
+        // Animation CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInNotification {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+
+            @keyframes slideOutNotification {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
