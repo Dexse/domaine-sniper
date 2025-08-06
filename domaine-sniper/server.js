@@ -41,7 +41,15 @@ function initializeServices() {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Servir les fichiers statiques avec gestion d'erreur
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+  }
+}));
 
 // Variables globales pour le monitoring
 let isMonitoring = false;
@@ -342,10 +350,28 @@ app.get('/api/logs', async (req, res) => {
 // Routes pour servir les pages
 app.get('/', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    console.log('Tentative de service de:', indexPath);
+    
+    // Vérifier si le fichier existe
+    const fs = require('fs');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      console.error('Fichier index.html non trouvé à:', indexPath);
+      res.status(404).send(`
+        <h1>Fichier non trouvé</h1>
+        <p>Le fichier index.html n'existe pas à: ${indexPath}</p>
+        <p><a href="/test">Tester le serveur</a></p>
+      `);
+    }
   } catch (error) {
     console.error('Erreur lors du service de index.html:', error);
-    res.status(500).send('Erreur serveur');
+    res.status(500).send(`
+      <h1>Erreur serveur</h1>
+      <p>Erreur: ${error.message}</p>
+      <p><a href="/test">Tester le serveur</a></p>
+    `);
   }
 });
 
@@ -386,19 +412,31 @@ app.get('/api/test-ovh', async (req, res) => {
 
 app.get('/analytics', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'public', 'analytics.html'));
+    const analyticsPath = path.join(__dirname, 'public', 'analytics.html');
+    const fs = require('fs');
+    if (fs.existsSync(analyticsPath)) {
+      res.sendFile(analyticsPath);
+    } else {
+      res.status(404).send('<h1>Analytics non disponible</h1><p><a href="/">Retour</a></p>');
+    }
   } catch (error) {
     console.error('Erreur lors du service de analytics.html:', error);
-    res.status(500).send('Erreur serveur');
+    res.status(500).send('<h1>Erreur serveur</h1><p><a href="/">Retour</a></p>');
   }
 });
 
 app.get('/purchases', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'public', 'purchases.html'));
+    const purchasesPath = path.join(__dirname, 'public', 'purchases.html');
+    const fs = require('fs');
+    if (fs.existsSync(purchasesPath)) {
+      res.sendFile(purchasesPath);
+    } else {
+      res.status(404).send('<h1>Purchases non disponible</h1><p><a href="/">Retour</a></p>');
+    }
   } catch (error) {
     console.error('Erreur lors du service de purchases.html:', error);
-    res.status(500).send('Erreur serveur');
+    res.status(500).send('<h1>Erreur serveur</h1><p><a href="/">Retour</a></p>');
   }
 });
 
@@ -407,7 +445,16 @@ app.get('/test', (req, res) => {
   res.json({ 
     message: 'Serveur fonctionne !', 
     timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV 
+    env: process.env.NODE_ENV,
+    publicPath: path.join(__dirname, 'public'),
+    files: (() => {
+      try {
+        const fs = require('fs');
+        return fs.readdirSync(path.join(__dirname, 'public'));
+      } catch (e) {
+        return 'Erreur lecture dossier public: ' + e.message;
+      }
+    })()
   });
 });
 
