@@ -146,31 +146,11 @@ app.get('/', (req, res) => {
     console.log('🏠 Serving index.html from:', indexPath);
     
     if (fs.existsSync(indexPath)) {
-      console.log('✅ index.html found, sending file');
-      res.sendFile(indexPath, (err) => {
-        if (err) {
-          console.error('❌ Error sending index.html:', err);
-          // En cas d'erreur, envoyer un HTML simple
-          res.status(200).send(`
-            <!DOCTYPE html>
-            <html>
-            <head><title>Domaine Sniper</title></head>
-            <body>
-              <h1>🎯 Domaine Sniper</h1>
-              <p>Chargement en cours...</p>
-              <p><a href="/test">Voir les diagnostics</a></p>
-              <script>
-                setTimeout(() => {
-                  window.location.reload();
-                }, 3000);
-              </script>
-            </body>
-            </html>
-          `);
-        } else {
-          console.log('✅ index.html sent successfully');
-        }
-      });
+      console.log('✅ index.html found, reading content');
+      const htmlContent = fs.readFileSync(indexPath, 'utf8');
+      console.log('✅ HTML content read, sending to browser');
+      res.setHeader('Content-Type', 'text/html');
+      res.status(200).send(htmlContent);
     } else {
       console.error('❌ index.html not found at:', indexPath);
       res.status(200).send(`
@@ -193,13 +173,8 @@ app.get('/', (req, res) => {
       <head><title>Domaine Sniper - Erreur</title></head>
       <body>
         <h1>🎯 Domaine Sniper</h1>
-        <p>Erreur temporaire, rechargement automatique...</p>
+        <p>Erreur: ${error.message}</p>
         <p><a href="/test">Diagnostics</a></p>
-        <script>
-          setTimeout(() => {
-            window.location.reload();
-          }, 5000);
-        </script>
       </body>
       </html>
     `);
