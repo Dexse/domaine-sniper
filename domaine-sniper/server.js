@@ -87,6 +87,8 @@ async function monitorDomains() {
 
     for (const domain of activeDomains) {
       try {
+        await logMessage('info', `🔄 Vérification de ${domain.domain}...`, domain.domain);
+        
         const expirationInfo = await ovhClient.getDomainExpirationInfo(domain.domain);
         if (expirationInfo) {
           await db.updateDomainExpirationInfo(
@@ -99,7 +101,11 @@ async function monitorDomains() {
         }
         
         const isAvailable = await ovhClient.isDomainAvailable(domain.domain);
-        await db.addDomainCheck(domain.id, isAvailable ? 'available' : 'unavailable', isAvailable);
+        
+        // Enregistrer le résultat de la vérification
+        const checkStatus = isAvailable ? 'available' : 'unavailable';
+        await db.addDomainCheck(domain.id, checkStatus, isAvailable);
+        await logMessage('info', `✅ ${domain.domain} - ${checkStatus.toUpperCase()}`, domain.domain);
         
         if (isAvailable) {
           await logMessage('success', `🎯 DOMAINE DISPONIBLE: ${domain.domain}`, domain.domain);
@@ -121,9 +127,9 @@ async function monitorDomains() {
           }
         } else {
           await db.updateDomainStatus(domain.id, 'unavailable');
-          await logMessage('info', `${domain.domain} - Non disponible`, domain.domain);
         }
         
+        // Délai entre les vérifications
         await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (error) {
@@ -133,7 +139,7 @@ async function monitorDomains() {
       }
     }
     
-    await logMessage('info', 'Vérification terminée');
+    await logMessage('success', `🏁 Vérification terminée pour ${activeDomains.length} domaine(s)`);
   } catch (error) {
     await logMessage('error', `Erreur générale du monitoring: ${error.message}`);
   }
@@ -229,6 +235,60 @@ app.get('/test', (req, res) => {
     indexExists: fs.existsSync(path.join(publicPath, 'index.html')),
     servicesInitialized: !!(db && ovhClient)
   });
+});
+
+// Route de diagnostic HTML
+app.get('/debug-html', (req, res) => {
+  try {
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    console.log('🔍 Debug HTML - Chemin:', indexPath);
+    
+    if (!fs.existsSync(indexPath)) {
+      return res.send('<h1>ERREUR: index.html non trouvé</h1>');
+    }
+    
+    const htmlContent = fs.readFileSync(indexPath, 'utf8');
+    console.log('📄 Taille du fichier HTML:', htmlContent.length, 'caractères');
+    console.log('🔤 Premiers 200 caractères:', htmlContent.substring(0, 200));
+    
+    // Vérifier si le HTML est valide
+    const hasDoctype = htmlContent.includes('<!DOCTYPE');
+    const hasHtml = htmlContent.includes('<html');
+    const hasHead = htmlContent.includes('<head>');
+    const hasBody = htmlContent.includes('<body>');
+    
+    res.json({
+      fileExists: true,
+      fileSize: htmlContent.length,
+      hasDoctype: hasDoctype,
+      hasHtml: hasHtml,
+      hasHead: hasHead,
+      hasBody: hasBody,
+      firstChars: htmlContent.substring(0, 500),
+      lastChars: htmlContent.substring(htmlContent.length - 200)
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur debug HTML:', error);
+    res.json({ error: error.message });
+  }
+});
+
+// Route HTML simple pour test
+app.get('/simple', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Test Simple</title>
+    </head>
+    <body>
+      <h1>🎯 Test Simple Réussi !</h1>
+      <p>Si vous voyez ceci, le serveur fonctionne parfaitement.</p>
+      <p>Timestamp: ${new Date().toISOString()}</p>
+    </body>
+    </html>
+  `);
 });
 
 // Routes API
