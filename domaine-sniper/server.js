@@ -112,18 +112,30 @@ async function monitorDomains() {
           await db.updateDomainStatus(domain.id, 'available');
           
           if (domain.auto_purchase_enabled) {
-            await logMessage('info', `Tentative d'achat automatique pour ${domain.domain}...`, domain.domain);
+            await logMessage('info', `🛒 ACHAT AUTOMATIQUE ACTIVÉ pour ${domain.domain}...`, domain.domain);
             
-            const purchaseResult = await ovhClient.purchaseDomain(domain.domain);
+            try {
+              const purchaseResult = await ovhClient.purchaseDomain(domain.domain);
             
-            if (purchaseResult.success) {
-              await logMessage('success', `✅ Achat réussi pour ${domain.domain}! ID: ${purchaseResult.orderId}`, domain.domain);
-              await db.addPurchase(domain.id, domain.domain, purchaseResult.orderId, 'completed');
-              await db.updateDomainStatus(domain.id, 'purchased');
-            } else {
-              await logMessage('error', `❌ Échec de l'achat pour ${domain.domain}: ${purchaseResult.error}`, domain.domain);
-              await db.addPurchase(domain.id, domain.domain, null, 'failed', null, purchaseResult.error);
+              if (purchaseResult.success) {
+                await logMessage('success', `✅ ACHAT RÉUSSI pour ${domain.domain}! ID: ${purchaseResult.orderId}`, domain.domain);
+                await db.addPurchase(domain.id, domain.domain, purchaseResult.orderId, 'completed', purchaseResult.price);
+                await db.updateDomainStatus(domain.id, 'purchased');
+                
+                // Désactiver la surveillance pour ce domaine acheté
+                await db.updateDomainSettings(domain.id, false, false);
+                await logMessage('info', `📝 Surveillance désactivée pour ${domain.domain} (acheté)`, domain.domain);
+                
+              } else {
+                await logMessage('error', `❌ ÉCHEC ACHAT pour ${domain.domain}: ${purchaseResult.error}`, domain.domain);
+                await db.addPurchase(domain.id, domain.domain, null, 'failed', null, purchaseResult.error);
+              }
+            } catch (purchaseError) {
+              await logMessage('error', `❌ ERREUR CRITIQUE ACHAT ${domain.domain}: ${purchaseError.message}`, domain.domain);
+              await db.addPurchase(domain.id, domain.domain, null, 'failed', null, purchaseError.message);
             }
+          } else {
+            await logMessage('info', `⚠️ Domaine ${domain.domain} disponible mais achat automatique DÉSACTIVÉ`, domain.domain);
           }
         } else {
           await db.updateDomainStatus(domain.id, 'unavailable');
