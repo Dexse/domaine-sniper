@@ -49,127 +49,121 @@ class OVHClient {
   }
 
   /**
-   * Vérifier si un domaine est disponible
+   * VÉRIFIER SI UN DOMAINE EST DISPONIBLE À L'ACHAT
+   * Méthode simple et fiable : essayer de créer une commande
    */
   async isDomainAvailable(domain) {
-    console.log(`🔍 Vérification de disponibilité pour: ${domain}`);
+    console.log(`🔍 [${domain}] Vérification de disponibilité...`);
+    
+    let cartId = null;
     
     try {
-      // Test direct avec OVH : essayer d'acheter le domaine
-      console.log(`📦 Test d'achat OVH pour ${domain}...`);
-      
+      // 1. Créer un panier de test
+      console.log(`📦 [${domain}] Création du panier de test...`);
       const cart = await this.client.requestPromised('POST', '/order/cart', {
         ovhSubsidiary: 'FR'
       });
+      cartId = cart.cartId;
+      console.log(`✅ [${domain}] Panier créé: ${cartId}`);
       
-      console.log(`✅ Panier créé: ${cart.cartId}`);
+      // 2. Essayer d'ajouter le domaine
+      console.log(`➕ [${domain}] Test d'ajout au panier...`);
+      await this.client.requestPromised('POST', `/order/cart/${cartId}/domain`, {
+        domain: domain,
+        duration: 'P1Y'
+      });
+      console.log(`✅ [${domain}] Domaine ajouté au panier`);
       
-      try {
-        // Essayer d'ajouter le domaine
-        const cartItem = await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/domain`, {
-          domain: domain,
-          duration: 'P1Y'
-        });
+      // 3. Essayer d'assigner le panier (étape critique)
+      console.log(`🔗 [${domain}] Test d'assignation du panier...`);
+      await this.client.requestPromised('POST', `/order/cart/${cartId}/assign`);
+      console.log(`✅ [${domain}] Panier assigné avec succès`);
+      
+      // 4. Vérifier que le panier peut être validé
+      console.log(`🔍 [${domain}] Vérification finale...`);
+      const summary = await this.client.requestPromised('GET', `/order/cart/${cartId}/summary`);
+      
+      if (summary && summary.totals && summary.totals.withTax && summary.totals.withTax.value > 0) {
+        console.log(`🎯 [${domain}] DOMAINE DISPONIBLE ! Prix: ${summary.totals.withTax.text}`);
         
-        console.log(`✅ Domaine ${domain} ajouté au panier avec succès`);
-        
-        // Essayer d'assigner le panier pour voir si c'est vraiment disponible
+        // Nettoyer le panier de test
         try {
-          await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/assign`);
-          console.log(`✅ Panier assigné - ${domain} est DISPONIBLE`);
-          
-          // Nettoyer le panier de test
-          try {
-            await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
-          } catch (e) {}
-          
-          return true; // Domaine disponible
-          
-        } catch (assignError) {
-          console.log(`❌ Impossible d'assigner le panier - ${domain} NON DISPONIBLE`);
-          
-          // Nettoyer le panier
-          try {
-            await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
-          } catch (e) {}
-          
-          return false; // Domaine non disponible
+          await this.client.requestPromised('DELETE', `/order/cart/${cartId}`);
+          console.log(`🧹 [${domain}] Panier de test supprimé`);
+        } catch (e) {
+          console.log(`⚠️ [${domain}] Erreur nettoyage panier: ${e.message}`);
         }
         
-      } catch (addError) {
-        console.log(`❌ Impossible d'ajouter ${domain} au panier - NON DISPONIBLE`);
-        
-        // Nettoyer le panier
-        try {
-          await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
-        } catch (e) {}
-        
-        return false; // Domaine non disponible
+        return true; // DISPONIBLE
+      } else {
+        console.log(`❌ [${domain}] Panier invalide - NON DISPONIBLE`);
+        return false;
       }
       
     } catch (error) {
-      console.log(`❌ Erreur générale pour ${domain}: ${error.message}`);
-      return false;
+      console.log(`❌ [${domain}] Erreur: ${error.message}`);
+      
+      // Nettoyer le panier en cas d'erreur
+      if (cartId) {
+        try {
+          await this.client.requestPromised('DELETE', `/order/cart/${cartId}`);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+      
+      return false; // NON DISPONIBLE
     }
   }
 
   /**
-   * Acheter un domaine
+   * ACHETER UN DOMAINE AUTOMATIQUEMENT
    */
   async purchaseDomain(domain) {
-    console.log(`🛒 DÉBUT ACHAT AUTOMATIQUE pour ${domain}`);
+    console.log(`🛒 [${domain}] DÉBUT ACHAT AUTOMATIQUE`);
+    
+    let cartId = null;
     
     try {
-      // 1. Vérifier que le domaine est toujours disponible
-      console.log(`🔍 Vérification finale de disponibilité...`);
+      // 1. Vérification finale de disponibilité
+      console.log(`🔍 [${domain}] Vérification finale avant achat...`);
       const stillAvailable = await this.isDomainAvailable(domain);
       
       if (!stillAvailable) {
-        console.log(`❌ Domaine ${domain} n'est plus disponible`);
+        console.log(`❌ [${domain}] Plus disponible au moment de l'achat`);
         return {
           success: false,
-          error: 'Domaine plus disponible au moment de l\'achat'
+          error: 'Domaine plus disponible'
         };
       }
       
-      console.log(`✅ Domaine ${domain} confirmé disponible`);
-      
-      // 2. Créer un panier
-      console.log(`📦 Création du panier d'achat...`);
+      // 2. Créer le panier d'achat
+      console.log(`📦 [${domain}] Création du panier d'achat...`);
       const cart = await this.client.requestPromised('POST', '/order/cart', {
         ovhSubsidiary: 'FR'
       });
+      cartId = cart.cartId;
+      console.log(`✅ [${domain}] Panier d'achat créé: ${cartId}`);
       
-      console.log(`✅ Panier créé: ${cart.cartId}`);
-      
-      // 3. Ajouter le domaine au panier
-      console.log(`➕ Ajout du domaine au panier...`);
-      const cartItem = await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/domain`, {
+      // 3. Ajouter le domaine
+      console.log(`➕ [${domain}] Ajout du domaine au panier...`);
+      await this.client.requestPromised('POST', `/order/cart/${cartId}/domain`, {
         domain: domain,
         duration: 'P1Y'
       });
-      
-      console.log(`✅ Domaine ajouté au panier: ${cartItem.itemId}`);
+      console.log(`✅ [${domain}] Domaine ajouté au panier d'achat`);
       
       // 4. Assigner le panier
-      console.log(`🔗 Assignation du panier...`);
-      try {
-        await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/assign`);
-        console.log(`✅ Panier assigné`);
-      } catch (assignError) {
-        console.log(`⚠️ Erreur assignation (continuons): ${assignError.message}`);
-      }
+      console.log(`🔗 [${domain}] Assignation du panier...`);
+      await this.client.requestPromised('POST', `/order/cart/${cartId}/assign`);
+      console.log(`✅ [${domain}] Panier assigné`);
       
-      // 5. Attendre un peu
-      console.log(`⏳ Attente de stabilisation...`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 5. Finaliser la commande
+      console.log(`💳 [${domain}] Finalisation de la commande...`);
+      const order = await this.client.requestPromised('POST', `/order/cart/${cartId}/checkout`);
       
-      // 6. Valider la commande
-      console.log(`💳 Validation de la commande...`);
-      const order = await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/checkout`);
-      
-      console.log(`🎉 ACHAT RÉUSSI !`);
-      console.log(`📋 ID Commande: ${order.orderId}`);
+      console.log(`🎉 [${domain}] ACHAT RÉUSSI !`);
+      console.log(`📋 [${domain}] ID Commande: ${order.orderId}`);
       
       return {
         success: true,
@@ -179,30 +173,31 @@ class OVHClient {
       };
       
     } catch (error) {
-      console.log(`❌ ERREUR ACHAT ${domain}: ${error.message}`);
+      console.log(`❌ [${domain}] ERREUR ACHAT: ${error.message}`);
+      
+      // Nettoyer le panier en cas d'erreur
+      if (cartId) {
+        try {
+          await this.client.requestPromised('DELETE', `/order/cart/${cartId}`);
+          console.log(`🧹 [${domain}] Panier d'achat supprimé après erreur`);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
       
       return {
         success: false,
-        error: error.message,
-        details: {
-          httpCode: error.httpCode,
-          class: error.class
-        }
+        error: error.message
       };
     }
   }
 
   /**
-   * Obtenir des informations sur l'expiration d'un domaine
+   * Obtenir des informations sur l'expiration d'un domaine (optionnel)
    */
   async getDomainExpirationInfo(domain) {
-    try {
-      // Cette méthode est optionnelle et peut échouer
-      // On retourne null si pas d'info disponible
-      return null;
-    } catch (error) {
-      return null;
-    }
+    // Cette méthode est optionnelle et peut échouer
+    return null;
   }
 }
 
