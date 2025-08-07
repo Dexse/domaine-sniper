@@ -55,8 +55,8 @@ class OVHClient {
     console.log(`🔍 Vérification de disponibilité pour: ${domain}`);
     
     try {
-      // Méthode 1: Test d'ajout au panier (le plus fiable)
-      console.log(`📦 Test d'ajout au panier pour ${domain}...`);
+      // Test direct avec OVH : essayer d'acheter le domaine
+      console.log(`📦 Test d'achat OVH pour ${domain}...`);
       
       const cart = await this.client.requestPromised('POST', '/order/cart', {
         ovhSubsidiary: 'FR'
@@ -65,6 +65,7 @@ class OVHClient {
       console.log(`✅ Panier créé: ${cart.cartId}`);
       
       try {
+        // Essayer d'ajouter le domaine
         const cartItem = await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/domain`, {
           domain: domain,
           duration: 'P1Y'
@@ -72,67 +73,44 @@ class OVHClient {
         
         console.log(`✅ Domaine ${domain} ajouté au panier avec succès`);
         
-        // Nettoyer le panier
+        // Essayer d'assigner le panier pour voir si c'est vraiment disponible
         try {
-          await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
-        } catch (e) {
-          // Ignorer les erreurs de nettoyage
+          await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/assign`);
+          console.log(`✅ Panier assigné - ${domain} est DISPONIBLE`);
+          
+          // Nettoyer le panier de test
+          try {
+            await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
+          } catch (e) {}
+          
+          return true; // Domaine disponible
+          
+        } catch (assignError) {
+          console.log(`❌ Impossible d'assigner le panier - ${domain} NON DISPONIBLE`);
+          
+          // Nettoyer le panier
+          try {
+            await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
+          } catch (e) {}
+          
+          return false; // Domaine non disponible
         }
-        
-        return true; // Domaine disponible
         
       } catch (addError) {
-        console.log(`❌ Impossible d'ajouter ${domain} au panier: ${addError.message}`);
+        console.log(`❌ Impossible d'ajouter ${domain} au panier - NON DISPONIBLE`);
         
         // Nettoyer le panier
         try {
           await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
-        } catch (e) {
-          // Ignorer les erreurs de nettoyage
-        }
+        } catch (e) {}
         
         return false; // Domaine non disponible
       }
       
     } catch (error) {
-      console.log(`❌ Erreur lors de la vérification de ${domain}: ${error.message}`);
-      
-      // Fallback: logique basée sur le nom
-      return this.fallbackAvailabilityCheck(domain);
+      console.log(`❌ Erreur générale pour ${domain}: ${error.message}`);
+      return false;
     }
-  }
-
-  /**
-   * Logique de fallback pour déterminer la disponibilité
-   */
-  fallbackAvailabilityCheck(domain) {
-    console.log(`🧠 Analyse fallback pour ${domain}...`);
-    
-    const name = domain.split('.')[0].toLowerCase();
-    let score = 0.3; // Score de base conservateur
-    
-    // Bonus pour domaines longs et spécifiques
-    if (name.length > 12) score += 0.4;
-    else if (name.length > 8) score += 0.2;
-    
-    // Pénalités pour mots courants
-    const commonWords = ['shop', 'store', 'web', 'site', 'online', 'digital', 'tech', 'app', 'blog', 'news', 'info', 'pro', 'expert', 'service', 'company', 'business', 'market', 'trade', 'sale', 'buy', 'best', 'top', 'new', 'free', 'easy', 'fast', 'quick', 'smart', 'auto', 'car', 'home', 'house', 'food', 'travel', 'hotel', 'book', 'photo', 'music', 'video', 'game', 'sport', 'health', 'beauty', 'fashion', 'style', 'love', 'life', 'world', 'global', 'international', 'national', 'local', 'city', 'france', 'paris', 'london', 'europe', 'america', 'asia'];
-    
-    for (const word of commonWords) {
-      if (name.includes(word)) {
-        score -= 0.3;
-        break;
-      }
-    }
-    
-    // Bonus pour domaines très spécifiques
-    if (name.includes('voiture') && name.includes('jour')) score += 0.3;
-    if (name.length > 15) score += 0.2;
-    
-    const isAvailable = score > 0.5;
-    console.log(`📊 Score de disponibilité: ${score.toFixed(2)} → ${isAvailable ? 'DISPONIBLE' : 'NON DISPONIBLE'}`);
-    
-    return isAvailable;
   }
 
   /**
