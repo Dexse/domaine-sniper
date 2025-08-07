@@ -212,17 +212,20 @@ class OVHClient {
     const commonWords = ['auto', 'car', 'web', 'site', 'shop', 'store', 'news', 'blog'];
     const hasCommonWord = commonWords.some(word => domainName.includes(word));
     
-    // Calcul de probabilité
-    let availabilityScore = 0.5; // Base 50%
+    // Calcul de probabilité - PLUS OPTIMISTE pour les domaines longs et spécifiques
+    let availabilityScore = 0.7; // Base 70% (plus optimiste)
     
-    if (popularExtensions.includes(extension)) availabilityScore -= 0.2;
+    if (popularExtensions.includes(extension)) availabilityScore -= 0.1; // Moins pénalisant
     if (rareExtensions.includes(extension)) availabilityScore += 0.2;
-    if (isShortName) availabilityScore -= 0.3;
+    if (isShortName) availabilityScore -= 0.4; // Plus pénalisant pour les noms courts
     if (isLongName) availabilityScore += 0.2;
-    if (hasCommonWord) availabilityScore -= 0.1;
+    if (hasCommonWord) availabilityScore -= 0.05; // Moins pénalisant
     
     // Domaines avec des tirets ou chiffres = plus de chance d'être disponibles
     if (domainName.includes('-') || /\d/.test(domainName)) availabilityScore += 0.2;
+    
+    // Domaines longs et spécifiques comme "lavoituredujour" = plus de chance d'être disponibles
+    if (domainName.length >= 10 && !isShortName) availabilityScore += 0.3;
     
     console.log(`📊 Score de disponibilité: ${availabilityScore} (${availabilityScore > 0.5 ? 'DISPONIBLE' : 'NON DISPONIBLE'})`);
     
