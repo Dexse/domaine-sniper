@@ -19,7 +19,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
         }
@@ -119,6 +119,9 @@
         .controls h3 {
             margin-bottom: 1.5rem;
             color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         
         .button-group {
@@ -138,6 +141,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            font-size: 0.9rem;
         }
         
         .btn-primary {
@@ -175,6 +179,11 @@
         
         .btn-info:hover {
             background: #0891b2;
+        }
+        
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
         }
         
         .loading {
@@ -216,6 +225,178 @@
             border: 1px solid #3b82f6;
         }
         
+        /* Bulk Add Styles */
+        .bulk-add {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .bulk-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+        
+        .bulk-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .bulk-options {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
+        /* Domain List Styles */
+        .domain-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .domain-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background-color 0.2s ease;
+        }
+        
+        .domain-item:hover {
+            background-color: #f9fafb;
+        }
+        
+        .domain-item:last-child {
+            border-bottom: none;
+        }
+        
+        .domain-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .domain-name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1rem;
+        }
+        
+        .domain-status {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
+        .domain-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #10b981;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .toggle-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-align: center;
+            margin-top: 0.25rem;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-available {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-unavailable {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-purchased {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-error {
+            background: #fecaca;
+            color: #7f1d1d;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -231,6 +412,21 @@
             
             .btn {
                 justify-content: center;
+            }
+            
+            .domain-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            
+            .domain-controls {
+                justify-content: space-between;
+            }
+            
+            .bulk-options {
+                flex-direction: column;
+                align-items: stretch;
             }
         }
     </style>
@@ -296,15 +492,47 @@
             <div id="actionMessage"></div>
         </div>
 
-        <!-- Quick Add Domain -->
+        <!-- Bulk Add Domains -->
+        <div class="controls">
+            <h3>📝 Ajout en Masse de Domaines</h3>
+            <div class="bulk-add">
+                <textarea 
+                    id="bulkDomainsInput" 
+                    class="bulk-textarea" 
+                    placeholder="Collez vos domaines ici, un par ligne :&#10;exemple1.com&#10;exemple2.fr&#10;exemple3.net&#10;..."></textarea>
+                <div class="bulk-options">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="bulkMonitoring" checked>
+                        <label for="bulkMonitoring">Activer la surveillance</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="bulkAutoPurchase">
+                        <label for="bulkAutoPurchase">Achat automatique</label>
+                    </div>
+                    <button class="btn btn-primary" onclick="addBulkDomains()">
+                        ➕ Ajouter tous les domaines
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Add Single Domain -->
         <div class="controls">
             <h3>➕ Ajouter un Domaine</h3>
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                 <input type="text" id="domainInput" placeholder="exemple.com" 
                        style="padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; flex: 1; min-width: 200px;">
-                <button class="btn btn-primary" onclick="addDomain()">
+                <button class="btn btn-primary" onclick="addSingleDomain()">
                     ➕ Ajouter
                 </button>
+            </div>
+        </div>
+
+        <!-- Domain List -->
+        <div class="controls">
+            <h3>📋 Liste des Domaines (<span id="domainCount">0</span>)</h3>
+            <div class="domain-list" id="domainList">
+                <!-- Les domaines seront chargés ici -->
             </div>
         </div>
     </div>
@@ -312,6 +540,7 @@
     <script>
         // Variables globales
         let isLoading = false;
+        let domains = [];
         
         // Fonction pour afficher les messages
         function showMessage(message, type = 'info') {
@@ -372,6 +601,9 @@
                     updateStatus('Erreur de chargement', 'error');
                 }
                 
+                // Charger la liste des domaines
+                await loadDomains();
+                
             } catch (error) {
                 console.error('Erreur:', error);
                 updateStatus('Erreur de connexion', 'error');
@@ -381,7 +613,76 @@
             }
         }
         
-        // Actions
+        // Charger la liste des domaines
+        async function loadDomains() {
+            try {
+                const response = await fetch('/api/domains');
+                domains = await response.json();
+                displayDomains();
+            } catch (error) {
+                console.error('Erreur lors du chargement des domaines:', error);
+            }
+        }
+        
+        // Afficher la liste des domaines
+        function displayDomains() {
+            const container = document.getElementById('domainList');
+            const countElement = document.getElementById('domainCount');
+            
+            countElement.textContent = domains.length;
+            
+            if (domains.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #6b7280;">Aucun domaine ajouté pour le moment</div>';
+                return;
+            }
+            
+            container.innerHTML = domains.map(domain => `
+                <div class="domain-item">
+                    <div class="domain-info">
+                        <div class="domain-name">${domain.domain}</div>
+                        <div class="domain-status">
+                            <span class="status-badge status-${domain.status || 'pending'}">${getStatusText(domain.status)}</span>
+                            ${domain.last_check ? `• Dernière vérif: ${new Date(domain.last_check).toLocaleString('fr-FR')}` : ''}
+                        </div>
+                    </div>
+                    <div class="domain-controls">
+                        <div style="text-align: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" ${domain.monitoring_enabled ? 'checked' : ''} 
+                                       onchange="toggleMonitoring(${domain.id}, this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label">Surveillance</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" ${domain.auto_purchase_enabled ? 'checked' : ''} 
+                                       onchange="toggleAutoPurchase(${domain.id}, this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label">Achat Auto</div>
+                        </div>
+                        <button class="btn btn-danger btn-small" onclick="deleteDomain(${domain.id}, '${domain.domain}')">
+                            🗑️ Supprimer
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Obtenir le texte du statut
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': 'En attente',
+                'available': 'Disponible',
+                'unavailable': 'Non disponible',
+                'purchased': 'Acheté',
+                'error': 'Erreur'
+            };
+            return statusMap[status] || 'Inconnu';
+        }
+        
+        // Actions de surveillance
         async function startMonitoring() {
             try {
                 showMessage('Démarrage de la surveillance...', 'info');
@@ -436,7 +737,8 @@
             }
         }
         
-        async function addDomain() {
+        // Ajout de domaines
+        async function addSingleDomain() {
             const domainInput = document.getElementById('domainInput');
             const domain = domainInput.value.trim();
             
@@ -471,6 +773,135 @@
             }
         }
         
+        async function addBulkDomains() {
+            const textarea = document.getElementById('bulkDomainsInput');
+            const monitoringEnabled = document.getElementById('bulkMonitoring').checked;
+            const autoPurchaseEnabled = document.getElementById('bulkAutoPurchase').checked;
+            
+            const domainsText = textarea.value.trim();
+            if (!domainsText) {
+                showMessage('Veuillez saisir au moins un domaine', 'error');
+                return;
+            }
+            
+            // Extraire les domaines (un par ligne, ignorer les lignes vides)
+            const domainsList = domainsText
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+            
+            if (domainsList.length === 0) {
+                showMessage('Aucun domaine valide trouvé', 'error');
+                return;
+            }
+            
+            showMessage(`Ajout de ${domainsList.length} domaine(s) en cours...`, 'info');
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const domain of domainsList) {
+                try {
+                    const response = await fetch('/api/domains', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            domain: domain,
+                            monitoringEnabled: monitoringEnabled,
+                            autoPurchaseEnabled: autoPurchaseEnabled
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                        console.error(`Erreur pour ${domain}:`, await response.text());
+                    }
+                } catch (error) {
+                    errorCount++;
+                    console.error(`Erreur pour ${domain}:`, error);
+                }
+                
+                // Petit délai pour éviter de surcharger le serveur
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            if (successCount > 0) {
+                showMessage(`✅ ${successCount} domaine(s) ajouté(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ''}`, 'success');
+                textarea.value = '';
+                setTimeout(loadDashboard, 1000);
+            } else {
+                showMessage(`❌ Aucun domaine ajouté (${errorCount} erreur(s))`, 'error');
+            }
+        }
+        
+        // Contrôles des domaines
+        async function toggleMonitoring(domainId, enabled) {
+            try {
+                const response = await fetch(`/api/domains/${domainId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        monitoringEnabled: enabled,
+                        autoPurchaseEnabled: domains.find(d => d.id === domainId)?.auto_purchase_enabled || false
+                    })
+                });
+                
+                if (response.ok) {
+                    showMessage(`Surveillance ${enabled ? 'activée' : 'désactivée'}`, 'success');
+                    setTimeout(loadDashboard, 500);
+                } else {
+                    showMessage('Erreur lors de la mise à jour', 'error');
+                }
+            } catch (error) {
+                showMessage('Erreur: ' + error.message, 'error');
+            }
+        }
+        
+        async function toggleAutoPurchase(domainId, enabled) {
+            try {
+                const response = await fetch(`/api/domains/${domainId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        monitoringEnabled: domains.find(d => d.id === domainId)?.monitoring_enabled || false,
+                        autoPurchaseEnabled: enabled
+                    })
+                });
+                
+                if (response.ok) {
+                    showMessage(`Achat automatique ${enabled ? 'activé' : 'désactivé'}`, 'success');
+                    setTimeout(loadDashboard, 500);
+                } else {
+                    showMessage('Erreur lors de la mise à jour', 'error');
+                }
+            } catch (error) {
+                showMessage('Erreur: ' + error.message, 'error');
+            }
+        }
+        
+        async function deleteDomain(domainId, domainName) {
+            if (!confirm(`Êtes-vous sûr de vouloir supprimer ${domainName} ?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/domains/${domainId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showMessage(`Domaine ${domainName} supprimé`, 'success');
+                    setTimeout(loadDashboard, 500);
+                } else {
+                    showMessage('Erreur lors de la suppression', 'error');
+                }
+            } catch (error) {
+                showMessage('Erreur: ' + error.message, 'error');
+            }
+        }
+        
         // Initialisation
         document.addEventListener('DOMContentLoaded', function() {
             loadDashboard();
@@ -481,7 +912,7 @@
             // Permettre d'ajouter un domaine avec Entrée
             document.getElementById('domainInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
-                    addDomain();
+                    addSingleDomain();
                 }
             });
         });
