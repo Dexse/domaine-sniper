@@ -155,8 +155,8 @@ class OVHClient {
     try {
       console.log(`🌐 Test WHOIS externe pour ${domain}...`);
       
-      // Utiliser une API WHOIS gratuite
-      const response = await axios.get(`https://api.whoisjson.com/v1/${domain}`, {
+      // Utiliser une API WHOIS simple et fiable
+      const response = await axios.get(`https://whois.freeapi.app/api/whois?domainName=${domain}`, {
         timeout: 10000,
         headers: {
           'User-Agent': 'DomainSniper/1.0'
@@ -165,19 +165,20 @@ class OVHClient {
       
       console.log(`📋 Réponse WHOIS:`, response.data);
       
-      if (response.data && response.data.status) {
-        const status = response.data.status.toLowerCase();
+      if (response.data && response.data.whoisRaw) {
+        const whoisText = response.data.whoisRaw.toLowerCase();
         
         // Si le domaine n'existe pas dans WHOIS, il est probablement disponible
-        if (status.includes('no match') || 
-            status.includes('not found') || 
-            status.includes('available') ||
-            status.includes('no entries found')) {
+        if (whoisText.includes('no match') || 
+            whoisText.includes('not found') || 
+            whoisText.includes('available') ||
+            whoisText.includes('no entries found') ||
+            whoisText.includes('no data found')) {
           return { success: true };
         }
         
         // Si le domaine a des informations WHOIS, il est pris
-        if (response.data.registrar || response.data.creation_date) {
+        if (whoisText.includes('registrar') || whoisText.includes('creation date')) {
           return { success: false };
         }
       }
@@ -304,49 +305,29 @@ class OVHClient {
     try {
       console.log('💰 Récupération du solde OVH...');
       
-      // Essayer plusieurs méthodes pour récupérer le solde
-      const methods = [
-        () => this.client.requestPromised('GET', '/me/prepaidAccount'),
-        () => this.client.requestPromised('GET', '/me/bill/balance'),
-        () => this.client.requestPromised('GET', '/me/payment/method')
-      ];
+      // Méthode simple : récupérer les comptes prépayés
+      const prepaidAccounts = await this.client.requestPromised('GET', '/me/prepaidAccount');
       
-      for (const method of methods) {
-        try {
-          const result = await method();
-          console.log('✅ Solde récupéré:', result);
-          
-          if (result && typeof result.balance === 'number') {
-            return {
-              balance: result.balance,
-              currency: result.currency || 'EUR',
-              method: 'api'
-            };
-          }
-          
-          if (Array.isArray(result) && result.length > 0) {
-            // Pour les comptes prépayés
-            const account = await this.client.requestPromised('GET', `/me/prepaidAccount/${result[0]}`);
-            if (account && typeof account.balance === 'number') {
-              return {
-                balance: account.balance,
-                currency: account.currency || 'EUR',
-                method: 'prepaid'
-              };
-            }
-          }
-        } catch (methodError) {
-          console.log(`⚠️ Méthode échouée:`, methodError.message);
-          continue;
-        }
+      if (Array.isArray(prepaidAccounts) && prepaidAccounts.length > 0) {
+        // Récupérer les détails du premier compte
+        const account = await this.client.requestPromised('GET', `/me/prepaidAccount/${prepaidAccounts[0]}`);
+        console.log('✅ Solde récupéré:', account);
+        
+        return {
+          balance: account.balance || 0,
+          currency: account.currency || 'EUR',
+          method: 'prepaid'
+        };
+      } else {
+        // Pas de compte prépayé, essayer les informations générales
+        const me = await this.client.requestPromised('GET', '/me');
+        return {
+          balance: null,
+          currency: 'EUR',
+          method: 'no_prepaid',
+          info: `Compte ${me.nichandle} - Pas de solde prépayé`
+        };
       }
-      
-      return {
-        balance: null,
-        currency: 'EUR',
-        method: 'failed',
-        error: 'Impossible de récupérer le solde'
-      };
       
     } catch (error) {
       console.error('❌ Erreur solde:', error);
