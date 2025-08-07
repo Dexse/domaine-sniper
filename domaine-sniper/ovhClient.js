@@ -136,21 +136,11 @@ async function monitorDomains() {
       console.log(`✅ Domaine ${domain} confirmé disponible, procédure d'achat...`);
       
       // 2. Méthode alternative : Créer un panier pré-assigné
-      let cart;
-      try {
-        console.log(`📦 Création d'un panier pré-assigné...`);
-        cart = await this.client.requestPromised('POST', '/order/cart', {
-          ovhSubsidiary: 'FR',
-          assign: true  // Assigner directement à la création
-        });
-        console.log(`✅ Panier pré-assigné créé: ${cart.cartId}`);
-      } catch (cartError) {
-        console.log(`⚠️ Échec panier pré-assigné, tentative classique...`);
-        cart = await this.client.requestPromised('POST', '/order/cart', {
-          ovhSubsidiary: 'FR'
-        });
-        console.log(`📦 Panier classique créé: ${cart.cartId}`);
-      }
+      console.log(`📦 Création d'un panier...`);
+      const cart = await this.client.requestPromised('POST', '/order/cart', {
+        ovhSubsidiary: 'FR'
+      });
+      console.log(`✅ Panier créé: ${cart.cartId}`);
       
       // 3. Ajouter le domaine au panier
       console.log(`➕ Ajout du domaine ${domain} au panier...`);
@@ -161,14 +151,9 @@ async function monitorDomains() {
       console.log(`✅ Domaine ajouté: ${cartItem.itemId}`);
       
       // 4. Assigner le panier si pas déjà fait
-      try {
-        console.log(`🔗 Vérification de l'assignation du panier...`);
-        const cartInfo = await this.client.requestPromised('GET', `/order/cart/${cart.cartId}`);
-        
-        if (!cartInfo.assign) {
-          console.log(`🔗 Assignation du panier nécessaire...`);
-          await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/assign`);
-          console.log(`✅ Panier assigné avec succès`);
+      console.log(`🔗 Assignation du panier...`);
+      await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/assign`);
+      console.log(`✅ Panier assigné avec succès`);
         } else {
           console.log(`✅ Panier déjà assigné`);
         }
