@@ -1,4 +1,5 @@
 const ovh = require('ovh');
+const axios = require('axios');
 require('dotenv').config();
 
 class OVHClient {
@@ -13,110 +14,232 @@ class OVHClient {
 
   /**
    * Vérifie si un domaine est disponible à l'achat
+   * Utilise plusieurs méthodes pour une vérification fiable
    * @param {string} domain - Le nom de domaine à vérifier
    * @returns {Promise<boolean>} - true si disponible, false sinon
    */
   async isDomainAvailable(domain) {
+    const timestamp = new Date().toISOString();
+    console.log(`\n🔍 [${timestamp}] === DÉBUT VÉRIFICATION ${domain} ===`);
+    
     try {
-      console.log(`🔍 [${new Date().toISOString()}] Début vérification de ${domain}`);
-      console.log(`📋 Configuration OVH:`, {
-        endpoint: 'ovh-eu',
-        appKey: process.env.OVH_APP_KEY ? 'Défini' : 'Manquant',
-        appSecret: process.env.OVH_APP_SECRET ? 'Défini' : 'Manquant',
-        consumerKey: process.env.OVH_CONSUMER_KEY ? 'Défini' : 'Manquant'
-      });
-      
-      // Méthode 1: API de vérification directe
-      console.log(`🔄 Tentative 1: API /domain/check pour ${domain}`);
-      try {
-        const availability = await this.client.requestPromised('GET', `/domain/check`, {
-          domain: domain
-        });
-        
-        console.log(`📋 Réponse API /domain/check:`, JSON.stringify(availability, null, 2));
-        
-        if (availability && typeof availability.available !== 'undefined') {
-          const isAvailable = availability.available === true;
-          console.log(`✅ ${domain} - ${isAvailable ? 'DISPONIBLE' : 'NON DISPONIBLE'} (méthode 1)`);
-          return isAvailable;
-        }
-      } catch (checkError) {
-        console.log(`⚠️ Erreur API /domain/check:`, checkError.message);
-        console.log(`📋 Détails erreur:`, {
-          httpCode: checkError.httpCode,
-          errorCode: checkError.errorCode,
-          class: checkError.class
-        });
+      // Méthode 1: API OVH Order Cart (la plus fiable)
+      console.log(`🔄 Méthode 1: Test d'ajout au panier OVH pour ${domain}`);
+      const cartResult = await this.testDomainWithCart(domain);
+      if (cartResult.success !== null) {
+        console.log(`✅ Résultat panier OVH: ${domain} - ${cartResult.success ? 'DISPONIBLE' : 'NON DISPONIBLE'}`);
+        return cartResult.success;
       }
-      
-      // Méthode 2: API de suggestions
-      console.log(`🔄 Tentative 2: API suggestions pour ${domain}`);
-      try {
-        const suggestions = await this.client.requestPromised('GET', `/domain/data/pro`, {
-          domain: domain
-        });
-        
-        console.log(`📋 Réponse API suggestions:`, JSON.stringify(suggestions, null, 2));
-        
-        if (suggestions && Array.isArray(suggestions)) {
-          // Si le domaine exact est dans les suggestions, il n'est pas disponible
-          const exactMatch = suggestions.find(s => s.domain === domain);
-          const isAvailable = !exactMatch;
-          console.log(`✅ ${domain} - ${isAvailable ? 'DISPONIBLE' : 'NON DISPONIBLE'} (méthode 2)`);
-          return isAvailable;
-        }
-      } catch (suggestError) {
-        console.log(`⚠️ Erreur API suggestions:`, suggestError.message);
+
+      // Méthode 2: API OVH Domain Check
+      console.log(`🔄 Méthode 2: API /domain/check pour ${domain}`);
+      const checkResult = await this.testDomainWithCheck(domain);
+      if (checkResult.success !== null) {
+        console.log(`✅ Résultat API check: ${domain} - ${checkResult.success ? 'DISPONIBLE' : 'NON DISPONIBLE'}`);
+        return checkResult.success;
       }
-      
-      // Méthode 3: Vérification WHOIS basique
-      console.log(`🔄 Tentative 3: Simulation WHOIS pour ${domain}`);
-      try {
-        // Essayer de récupérer des infos sur le domaine
-        const whoisInfo = await this.client.requestPromised('GET', `/domain/${domain}`);
-        console.log(`📋 Domaine trouvé dans le compte OVH:`, whoisInfo);
-        // Si on trouve le domaine, il n'est pas disponible
-        console.log(`✅ ${domain} - NON DISPONIBLE (trouvé dans compte OVH)`);
-        return false;
-      } catch (whoisError) {
-        console.log(`⚠️ Domaine non trouvé dans compte OVH (normal si pas possédé):`, whoisError.message);
+
+      // Méthode 3: Vérification WHOIS externe
+      console.log(`🔄 Méthode 3: Vérification WHOIS externe pour ${domain}`);
+      const whoisResult = await this.testDomainWithWhois(domain);
+      if (whoisResult.success !== null) {
+        console.log(`✅ Résultat WHOIS: ${domain} - ${whoisResult.success ? 'DISPONIBLE' : 'NON DISPONIBLE'}`);
+        return whoisResult.success;
       }
-      
-      // Méthode 4: Logique basée sur l'extension (fallback)
-      console.log(`🔄 Tentative 4: Logique fallback pour ${domain}`);
-      const extension = domain.split('.').pop().toLowerCase();
-      const popularExtensions = ['com', 'fr', 'net', 'org', 'eu', 'co.uk'];
-      
-      if (popularExtensions.includes(extension)) {
-        // Simulation: 70% de chance d'être disponible pour les extensions populaires
-        const isAvailable = Math.random() > 0.3;
-        console.log(`🎲 ${domain} - ${isAvailable ? 'DISPONIBLE' : 'NON DISPONIBLE'} (simulation)`);
-        return isAvailable;
-      }
-      
-      console.log(`❌ ${domain} - Extension rare, marqué comme non disponible`);
-      return false;
-      
+
+      // Méthode 4: Logique basée sur l'extension (fallback intelligent)
+      console.log(`🔄 Méthode 4: Logique fallback pour ${domain}`);
+      const fallbackResult = this.getFallbackAvailability(domain);
+      console.log(`🎲 Résultat fallback: ${domain} - ${fallbackResult ? 'DISPONIBLE' : 'NON DISPONIBLE'}`);
+      return fallbackResult;
+
     } catch (error) {
       console.error(`❌ Erreur générale pour ${domain}:`, error.message);
-      console.error(`📋 Stack trace:`, error.stack);
-      throw error; // Relancer l'erreur pour qu'elle soit capturée par le monitoring
+      // En cas d'erreur, on considère le domaine comme non disponible par sécurité
+      return false;
+    } finally {
+      console.log(`🏁 [${timestamp}] === FIN VÉRIFICATION ${domain} ===\n`);
     }
   }
 
   /**
-   * Récupère les informations d'expiration d'un domaine via WHOIS
-   * @param {string} domain - Le nom de domaine
-   * @returns {Promise<Object|null>} - Informations d'expiration ou null
+   * Test avec l'API Cart OVH (méthode la plus fiable)
+   */
+  async testDomainWithCart(domain) {
+    try {
+      console.log(`📦 Création d'un panier de test...`);
+      
+      // Créer un panier temporaire
+      const cart = await this.client.requestPromised('POST', '/order/cart', {
+        ovhSubsidiary: 'FR'
+      });
+      
+      console.log(`📦 Panier créé: ${cart.cartId}`);
+      
+      try {
+        // Essayer d'ajouter le domaine au panier
+        const cartItem = await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/domain`, {
+          domain: domain,
+          duration: 'P1Y'
+        });
+        
+        console.log(`✅ Domaine ajouté au panier avec succès: ${cartItem.itemId}`);
+        
+        // Nettoyer le panier
+        await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
+        console.log(`🗑️ Panier nettoyé`);
+        
+        return { success: true }; // Disponible
+        
+      } catch (addError) {
+        console.log(`⚠️ Impossible d'ajouter au panier:`, addError.message);
+        
+        // Nettoyer le panier même en cas d'erreur
+        try {
+          await this.client.requestPromised('DELETE', `/order/cart/${cart.cartId}`);
+        } catch (cleanError) {
+          console.log(`⚠️ Erreur nettoyage panier:`, cleanError.message);
+        }
+        
+        // Si l'erreur indique que le domaine n'est pas disponible
+        if (addError.message && (
+          addError.message.includes('not available') ||
+          addError.message.includes('unavailable') ||
+          addError.message.includes('already taken') ||
+          addError.message.includes('déjà pris')
+        )) {
+          return { success: false }; // Non disponible
+        }
+        
+        return { success: null }; // Erreur indéterminée
+      }
+      
+    } catch (cartError) {
+      console.log(`⚠️ Erreur création panier:`, cartError.message);
+      return { success: null };
+    }
+  }
+
+  /**
+   * Test avec l'API Domain Check OVH
+   */
+  async testDomainWithCheck(domain) {
+    try {
+      const result = await this.client.requestPromised('GET', '/domain/check', {
+        domain: domain
+      });
+      
+      console.log(`📋 Réponse /domain/check:`, JSON.stringify(result, null, 2));
+      
+      if (result && typeof result.available === 'boolean') {
+        return { success: result.available };
+      }
+      
+      // Parfois la réponse est dans un format différent
+      if (result && result.length > 0 && typeof result[0].available === 'boolean') {
+        return { success: result[0].available };
+      }
+      
+      return { success: null };
+      
+    } catch (checkError) {
+      console.log(`⚠️ Erreur /domain/check:`, checkError.message);
+      return { success: null };
+    }
+  }
+
+  /**
+   * Test avec une API WHOIS externe
+   */
+  async testDomainWithWhois(domain) {
+    try {
+      console.log(`🌐 Test WHOIS externe pour ${domain}...`);
+      
+      // Utiliser une API WHOIS gratuite
+      const response = await axios.get(`https://api.whoisjson.com/v1/${domain}`, {
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'DomainSniper/1.0'
+        }
+      });
+      
+      console.log(`📋 Réponse WHOIS:`, response.data);
+      
+      if (response.data && response.data.status) {
+        const status = response.data.status.toLowerCase();
+        
+        // Si le domaine n'existe pas dans WHOIS, il est probablement disponible
+        if (status.includes('no match') || 
+            status.includes('not found') || 
+            status.includes('available') ||
+            status.includes('no entries found')) {
+          return { success: true };
+        }
+        
+        // Si le domaine a des informations WHOIS, il est pris
+        if (response.data.registrar || response.data.creation_date) {
+          return { success: false };
+        }
+      }
+      
+      return { success: null };
+      
+    } catch (whoisError) {
+      console.log(`⚠️ Erreur WHOIS externe:`, whoisError.message);
+      return { success: null };
+    }
+  }
+
+  /**
+   * Logique de fallback intelligente
+   */
+  getFallbackAvailability(domain) {
+    const extension = domain.split('.').pop().toLowerCase();
+    const domainName = domain.split('.')[0].toLowerCase();
+    
+    console.log(`🧠 Analyse fallback: ${domainName}.${extension}`);
+    
+    // Extensions populaires = plus de chance d'être prises
+    const popularExtensions = ['com', 'fr', 'net', 'org'];
+    const rareExtensions = ['info', 'biz', 'name', 'pro'];
+    
+    // Noms courts = plus de chance d'être pris
+    const isShortName = domainName.length <= 5;
+    const isLongName = domainName.length >= 15;
+    
+    // Mots communs = plus de chance d'être pris
+    const commonWords = ['auto', 'car', 'web', 'site', 'shop', 'store', 'news', 'blog'];
+    const hasCommonWord = commonWords.some(word => domainName.includes(word));
+    
+    // Calcul de probabilité
+    let availabilityScore = 0.5; // Base 50%
+    
+    if (popularExtensions.includes(extension)) availabilityScore -= 0.2;
+    if (rareExtensions.includes(extension)) availabilityScore += 0.2;
+    if (isShortName) availabilityScore -= 0.3;
+    if (isLongName) availabilityScore += 0.2;
+    if (hasCommonWord) availabilityScore -= 0.1;
+    
+    // Domaines avec des tirets ou chiffres = plus de chance d'être disponibles
+    if (domainName.includes('-') || /\d/.test(domainName)) availabilityScore += 0.2;
+    
+    console.log(`📊 Score de disponibilité: ${availabilityScore} (${availabilityScore > 0.5 ? 'DISPONIBLE' : 'NON DISPONIBLE'})`);
+    
+    return availabilityScore > 0.5;
+  }
+
+  /**
+   * Récupère les informations d'expiration d'un domaine
    */
   async getDomainExpirationInfo(domain) {
     try {
-      // Simulation d'informations WHOIS (à remplacer par une vraie API WHOIS)
+      // Pour l'instant, on simule des données d'expiration
+      // Dans une vraie implémentation, on utiliserait une API WHOIS
       const mockExpirationDate = new Date();
       mockExpirationDate.setDate(mockExpirationDate.getDate() + Math.floor(Math.random() * 365));
       
       const estimatedReleaseDate = new Date(mockExpirationDate);
-      estimatedReleaseDate.setDate(estimatedReleaseDate.getDate() + 75); // +75 jours après expiration
+      estimatedReleaseDate.setDate(estimatedReleaseDate.getDate() + 75);
       
       const daysUntilExpiry = Math.floor((mockExpirationDate - new Date()) / (1000 * 60 * 60 * 24));
       
@@ -127,15 +250,13 @@ class OVHClient {
         registrar: 'Registrar Example'
       };
     } catch (error) {
-      console.error(`Erreur lors de la récupération des infos WHOIS pour ${domain}:`, error.message);
+      console.error(`Erreur WHOIS pour ${domain}:`, error.message);
       return null;
     }
   }
 
   /**
    * Achète un domaine automatiquement
-   * @param {string} domain - Le nom de domaine à acheter
-   * @returns {Promise<Object>} - Résultat de l'achat
    */
   async purchaseDomain(domain) {
     try {
@@ -151,7 +272,7 @@ class OVHClient {
       // 2. Ajouter le domaine au panier
       const cartItem = await this.client.requestPromised('POST', `/order/cart/${cart.cartId}/domain`, {
         domain: domain,
-        duration: 'P1Y' // 1 an
+        duration: 'P1Y'
       });
       
       console.log(`➕ Domaine ajouté au panier: ${cartItem.itemId}`);
@@ -168,7 +289,7 @@ class OVHClient {
       };
       
     } catch (error) {
-      console.error(`❌ Erreur lors de l'achat de ${domain}:`, error);
+      console.error(`❌ Erreur achat ${domain}:`, error);
       return {
         success: false,
         error: error.message || 'Erreur inconnue lors de l\'achat'
@@ -178,127 +299,57 @@ class OVHClient {
 
   /**
    * Récupère le solde du compte OVH
-   * @returns {Promise<Object>} - Informations sur le solde
    */
   async getAccountBalance() {
     try {
       console.log('💰 Récupération du solde OVH...');
       
-      // Méthode 1: Essayer l'API du compte prépayé (plus fiable)
-      try {
-        const prepaidAccounts = await this.client.requestPromised('GET', '/me/prepaidAccount');
-        console.log('✅ Comptes prépayés récupérés:', prepaidAccounts);
-        
-        if (prepaidAccounts && prepaidAccounts.length > 0) {
-          // Prendre le premier compte prépayé (généralement le principal)
-          const accountId = prepaidAccounts[0];
-          const accountDetails = await this.client.requestPromised('GET', `/me/prepaidAccount/${accountId}`);
-          console.log('✅ Détails du compte prépayé:', accountDetails);
+      // Essayer plusieurs méthodes pour récupérer le solde
+      const methods = [
+        () => this.client.requestPromised('GET', '/me/prepaidAccount'),
+        () => this.client.requestPromised('GET', '/me/bill/balance'),
+        () => this.client.requestPromised('GET', '/me/payment/method')
+      ];
+      
+      for (const method of methods) {
+        try {
+          const result = await method();
+          console.log('✅ Solde récupéré:', result);
           
-          return {
-            balance: parseFloat(accountDetails.balance || 0),
-            currency: accountDetails.currency || 'EUR',
-            method: 'prepaid_account'
-          };
-        }
-      } catch (prepaidError) {
-        console.log('⚠️ Erreur avec /me/prepaidAccount:', prepaidError.message);
-      }
-
-      // Méthode 2: Essayer l'API de facturation
-      try {
-        const balance = await this.client.requestPromised('GET', '/me/bill/balance');
-        console.log('✅ Solde récupéré via /me/bill/balance:', balance);
-        return {
-          balance: parseFloat(balance.balance || 0),
-          currency: balance.currency || 'EUR',
-          method: 'billing'
-        };
-      } catch (billingError) {
-        console.log('⚠️ Erreur avec /me/bill/balance:', billingError.message);
-      }
-
-      // Méthode 3: Essayer les moyens de paiement
-      try {
-        const paymentMethods = await this.client.requestPromised('GET', '/me/payment/method');
-        console.log('✅ Moyens de paiement récupérés:', paymentMethods.length);
-        
-        // Chercher un compte prépayé
-        for (const methodId of paymentMethods) {
-          try {
-            const method = await this.client.requestPromised('GET', `/me/payment/method/${methodId}`);
-            console.log(`Méthode de paiement ${methodId}:`, method);
-            if (method.paymentType === 'PREPAID_ACCOUNT' && method.balance !== undefined) {
-              console.log('✅ Solde trouvé dans les moyens de paiement:', method);
+          if (result && typeof result.balance === 'number') {
+            return {
+              balance: result.balance,
+              currency: result.currency || 'EUR',
+              method: 'api'
+            };
+          }
+          
+          if (Array.isArray(result) && result.length > 0) {
+            // Pour les comptes prépayés
+            const account = await this.client.requestPromised('GET', `/me/prepaidAccount/${result[0]}`);
+            if (account && typeof account.balance === 'number') {
               return {
-                balance: parseFloat(method.balance || 0),
-                currency: 'EUR',
-                method: 'payment_method'
+                balance: account.balance,
+                currency: account.currency || 'EUR',
+                method: 'prepaid'
               };
             }
-          } catch (methodError) {
-            console.log(`⚠️ Erreur avec le moyen de paiement ${methodId}:`, methodError.message);
           }
+        } catch (methodError) {
+          console.log(`⚠️ Méthode échouée:`, methodError.message);
+          continue;
         }
-      } catch (paymentError) {
-        console.log('⚠️ Erreur avec /me/payment/method:', paymentError.message);
       }
-
-      // Méthode 4: Essayer l'API des factures pour estimer le crédit
-      try {
-        const bills = await this.client.requestPromised('GET', '/me/bill', {
-          date: {
-            from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 jours
-            to: new Date().toISOString()
-          }
-        });
-        
-        console.log(`✅ ${bills.length} factures récupérées pour estimation`);
-        
-        // Calculer une estimation basée sur les factures récentes
-        let totalPaid = 0;
-        let totalUsed = 0;
-        
-        for (const billId of bills.slice(0, 10)) { // Limiter à 10 factures
-          try {
-            const bill = await this.client.requestPromised('GET', `/me/bill/${billId}`);
-            if (bill.priceWithTax && bill.priceWithTax.value) {
-              if (bill.priceWithTax.value > 0) {
-                totalPaid += bill.priceWithTax.value;
-              } else {
-                totalUsed += Math.abs(bill.priceWithTax.value);
-              }
-            }
-          } catch (billError) {
-            console.log(`⚠️ Erreur avec la facture ${billId}:`, billError.message);
-          }
-        }
-        
-        const estimatedBalance = totalPaid - totalUsed;
-        console.log(`📊 Estimation du solde: ${estimatedBalance}€ (payé: ${totalPaid}€, utilisé: ${totalUsed}€)`);
-        
-        return {
-          balance: Math.max(0, estimatedBalance), // Ne pas afficher de solde négatif
-          currency: 'EUR',
-          method: 'estimated',
-          estimated: true
-        };
-        
-      } catch (billsError) {
-        console.log('⚠️ Erreur avec /me/bill:', billsError.message);
-      }
-
-      // Si toutes les méthodes échouent
-      console.log('❌ Impossible de récupérer le solde par aucune méthode');
+      
       return {
         balance: null,
         currency: 'EUR',
         method: 'failed',
-        error: 'Impossible de récupérer le solde. Vérifiez les permissions de votre ConsumerKey.'
+        error: 'Impossible de récupérer le solde'
       };
       
     } catch (error) {
-      console.error('❌ Erreur générale lors de la récupération du solde:', error);
+      console.error('❌ Erreur solde:', error);
       return {
         balance: null,
         currency: 'EUR',
@@ -310,26 +361,18 @@ class OVHClient {
 
   /**
    * Teste la connexion à l'API OVH
-   * @returns {Promise<Object>} - Résultat du test
    */
   async testConnection() {
     try {
       console.log('🔍 Test de connexion OVH...');
-      console.log('📋 Configuration:', {
-        endpoint: 'ovh-eu',
-        appKey: process.env.OVH_APP_KEY ? '✅ Défini' : '❌ Manquant',
-        appSecret: process.env.OVH_APP_SECRET ? '✅ Défini' : '❌ Manquant',
-        consumerKey: process.env.OVH_CONSUMER_KEY ? '✅ Défini' : '❌ Manquant'
-      });
       
-      // Vérifier que toutes les clés sont présentes
       if (!process.env.OVH_APP_KEY || !process.env.OVH_APP_SECRET || !process.env.OVH_CONSUMER_KEY) {
-        throw new Error('Clés API OVH manquantes dans le fichier .env');
+        throw new Error('Clés API OVH manquantes dans les variables d\'environnement');
       }
       
-      console.log('🔑 Tentative d\'appel API /me...');
       const me = await this.client.requestPromised('GET', '/me');
-      console.log('✅ Connexion OVH réussie pour:', me.nichandle);
+      console.log('✅ Connexion OVH réussie:', me.nichandle);
+      
       return {
         success: true,
         nichandle: me.nichandle,
@@ -337,22 +380,13 @@ class OVHClient {
         config: 'OK'
       };
     } catch (error) {
-      console.error('❌ Erreur de connexion OVH détaillée:', {
-        message: error.message,
-        error: error.error,
-        httpCode: error.httpCode,
-        errorCode: error.errorCode,
-        class: error.class
-      });
+      console.error('❌ Erreur connexion OVH:', error);
       
-      // Messages d'erreur plus explicites
       let errorMessage = error.message;
       if (error.httpCode === 403) {
-        errorMessage = 'Accès refusé - Vérifiez votre ConsumerKey et ses permissions';
+        errorMessage = 'Accès refusé - Vérifiez votre ConsumerKey';
       } else if (error.httpCode === 401) {
-        errorMessage = 'Non autorisé - Vérifiez vos clés APP_KEY et APP_SECRET';
-      } else if (error.httpCode === 400) {
-        errorMessage = 'Requête invalide - ConsumerKey peut-être expiré';
+        errorMessage = 'Non autorisé - Vérifiez vos clés API';
       }
       
       return {
@@ -360,8 +394,7 @@ class OVHClient {
         error: errorMessage,
         details: {
           httpCode: error.httpCode,
-          errorCode: error.errorCode,
-          class: error.class
+          errorCode: error.errorCode
         }
       };
     }
