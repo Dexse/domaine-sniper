@@ -87,55 +87,44 @@ async function monitorDomains() {
 
     for (const domain of activeDomains) {
       try {
-        await logMessage('info', `🔄 Vérification de ${domain.domain}...`, domain.domain);
-        
-        const expirationInfo = await ovhClient.getDomainExpirationInfo(domain.domain);
-        if (expirationInfo) {
-          await db.updateDomainExpirationInfo(
-            domain.id,
-            expirationInfo.expiryDate,
-            expirationInfo.estimatedReleaseDate,
-            expirationInfo.daysUntilExpiry,
-            expirationInfo.registrar
-          );
-        }
+        await logMessage('info', `🔄 [${domain.domain}] Début vérification...`, domain.domain);
         
         const isAvailable = await ovhClient.isDomainAvailable(domain.domain);
         
         // Enregistrer le résultat de la vérification
         const checkStatus = isAvailable ? 'available' : 'unavailable';
         await db.addDomainCheck(domain.id, checkStatus, isAvailable);
-        await logMessage('info', `✅ ${domain.domain} - ${checkStatus.toUpperCase()}`, domain.domain);
+        await logMessage('info', `📊 [${domain.domain}] Statut: ${checkStatus.toUpperCase()}`, domain.domain);
         
         if (isAvailable) {
-          await logMessage('success', `🎯 DOMAINE DISPONIBLE: ${domain.domain}`, domain.domain);
+          await logMessage('success', `🎯 [${domain.domain}] DOMAINE DISPONIBLE DÉTECTÉ !`, domain.domain);
           await db.updateDomainStatus(domain.id, 'available');
           
           if (domain.auto_purchase_enabled) {
-            await logMessage('info', `🛒 ACHAT AUTOMATIQUE ACTIVÉ pour ${domain.domain}...`, domain.domain);
+            await logMessage('info', `🛒 [${domain.domain}] ACHAT AUTOMATIQUE EN COURS...`, domain.domain);
             
             try {
               const purchaseResult = await ovhClient.purchaseDomain(domain.domain);
             
               if (purchaseResult.success) {
-                await logMessage('success', `✅ ACHAT RÉUSSI pour ${domain.domain}! ID: ${purchaseResult.orderId}`, domain.domain);
+                await logMessage('success', `🎉 [${domain.domain}] ACHAT RÉUSSI ! ID: ${purchaseResult.orderId}`, domain.domain);
                 await db.addPurchase(domain.id, domain.domain, purchaseResult.orderId, 'completed', purchaseResult.price);
                 await db.updateDomainStatus(domain.id, 'purchased');
                 
                 // Désactiver la surveillance pour ce domaine acheté
                 await db.updateDomainSettings(domain.id, false, false);
-                await logMessage('info', `📝 Surveillance désactivée pour ${domain.domain} (acheté)`, domain.domain);
+                await logMessage('info', `📝 [${domain.domain}] Surveillance désactivée (domaine acheté)`, domain.domain);
                 
               } else {
-                await logMessage('error', `❌ ÉCHEC ACHAT pour ${domain.domain}: ${purchaseResult.error}`, domain.domain);
+                await logMessage('error', `❌ [${domain.domain}] ÉCHEC ACHAT: ${purchaseResult.error}`, domain.domain);
                 await db.addPurchase(domain.id, domain.domain, null, 'failed', null, purchaseResult.error);
               }
             } catch (purchaseError) {
-              await logMessage('error', `❌ ERREUR CRITIQUE ACHAT ${domain.domain}: ${purchaseError.message}`, domain.domain);
+              await logMessage('error', `❌ [${domain.domain}] ERREUR CRITIQUE ACHAT: ${purchaseError.message}`, domain.domain);
               await db.addPurchase(domain.id, domain.domain, null, 'failed', null, purchaseError.message);
             }
           } else {
-            await logMessage('info', `⚠️ Domaine ${domain.domain} disponible mais achat automatique DÉSACTIVÉ`, domain.domain);
+            await logMessage('info', `⚠️ [${domain.domain}] Disponible mais achat automatique DÉSACTIVÉ`, domain.domain);
           }
         } else {
           await db.updateDomainStatus(domain.id, 'unavailable');
@@ -145,13 +134,13 @@ async function monitorDomains() {
         await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (error) {
-        await logMessage('error', `Erreur lors de la vérification de ${domain.domain}: ${error.message}`, domain.domain);
+        await logMessage('error', `❌ [${domain.domain}] Erreur vérification: ${error.message}`, domain.domain);
         await db.addDomainCheck(domain.id, 'error', false, error.message);
         await db.updateDomainStatus(domain.id, 'error');
       }
     }
     
-    await logMessage('success', `🏁 Vérification terminée pour ${activeDomains.length} domaine(s)`);
+    await logMessage('success', `🏁 Cycle de vérification terminé (${activeDomains.length} domaines)`);
   } catch (error) {
     await logMessage('error', `Erreur générale du monitoring: ${error.message}`);
   }
