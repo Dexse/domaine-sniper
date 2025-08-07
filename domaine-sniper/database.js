@@ -16,6 +16,10 @@ class Database {
         monitoring_enabled BOOLEAN DEFAULT 1,
         auto_purchase_enabled BOOLEAN DEFAULT 0,
         status TEXT DEFAULT 'pending',
+        expiry_date TEXT,
+        estimated_release_date TEXT,
+        days_until_expiry INTEGER,
+        registrar TEXT,
         last_check DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -114,7 +118,13 @@ class Database {
   updateDomainExpirationInfo(id, expiryDate, estimatedReleaseDate, daysUntilExpiry, registrar) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'UPDATE domains SET expiry_date = ?, estimated_release_date = ?, days_until_expiry = ?, registrar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        `UPDATE domains SET 
+         expiry_date = ?, 
+         estimated_release_date = ?, 
+         days_until_expiry = ?, 
+         registrar = ?, 
+         updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
         [expiryDate, estimatedReleaseDate, daysUntilExpiry, registrar, id],
         (err) => {
           if (err) reject(err);
@@ -162,7 +172,7 @@ class Database {
   getAnalyticsData(startDate, endDate) {
     return new Promise((resolve, reject) => {
       this.db.all(`
-        SELECT
+        SELECT 
           DATE(dc.check_date) as date,
           COUNT(*) as total_checks,
           SUM(CASE WHEN dc.available = 1 THEN 1 ELSE 0 END) as available_count,
