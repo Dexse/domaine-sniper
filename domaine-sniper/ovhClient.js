@@ -200,32 +200,48 @@ class OVHClient {
     
     console.log(`🧠 Analyse fallback: ${domainName}.${extension}`);
     
-    // Extensions populaires = plus de chance d'être prises
-    const popularExtensions = ['com', 'fr', 'net', 'org'];
-    const rareExtensions = ['info', 'biz', 'name', 'pro'];
+    // Logique plus stricte - la plupart des domaines courts sont PRIS
+    const popularExtensions = ['com', 'fr', 'net', 'org', 'io'];
+    const rareExtensions = ['info', 'biz', 'name', 'pro', 'xyz'];
     
-    // Noms courts = plus de chance d'être pris
+    // Noms courts = très probablement PRIS
     const isShortName = domainName.length <= 5;
-    const isLongName = domainName.length >= 15;
+    const isMediumName = domainName.length >= 8 && domainName.length <= 12;
+    const isLongName = domainName.length >= 13;
     
-    // Mots communs = plus de chance d'être pris
-    const commonWords = ['auto', 'car', 'web', 'site', 'shop', 'store', 'news', 'blog'];
+    // Mots très communs = très probablement PRIS
+    const commonWords = ['auto', 'car', 'web', 'site', 'shop', 'store', 'news', 'blog', 'app', 'tech', 'digital'];
     const hasCommonWord = commonWords.some(word => domainName.includes(word));
     
-    // Calcul de probabilité - PLUS OPTIMISTE pour les domaines longs et spécifiques
-    let availabilityScore = 0.7; // Base 70% (plus optimiste)
+    // Dictionnaire de mots courants (très probablement PRIS)
+    const dictionaryWords = ['market', 'shop', 'store', 'buy', 'sell', 'trade', 'business', 'company'];
+    const isDictionaryWord = dictionaryWords.some(word => domainName.includes(word));
     
-    if (popularExtensions.includes(extension)) availabilityScore -= 0.1; // Moins pénalisant
-    if (rareExtensions.includes(extension)) availabilityScore += 0.2;
-    if (isShortName) availabilityScore -= 0.4; // Plus pénalisant pour les noms courts
-    if (isLongName) availabilityScore += 0.2;
-    if (hasCommonWord) availabilityScore -= 0.05; // Moins pénalisant
+    // Calcul de probabilité - PLUS CONSERVATEUR (éviter les faux positifs)
+    let availabilityScore = 0.3; // Base 30% (très conservateur)
     
-    // Domaines avec des tirets ou chiffres = plus de chance d'être disponibles
-    if (domainName.includes('-') || /\d/.test(domainName)) availabilityScore += 0.2;
+    // Pénalités importantes
+    if (popularExtensions.includes(extension)) availabilityScore -= 0.2;
+    if (isShortName) availabilityScore -= 0.4; // Très pénalisant
+    if (hasCommonWord) availabilityScore -= 0.3;
+    if (isDictionaryWord) availabilityScore -= 0.4; // Très pénalisant
     
-    // Domaines longs et spécifiques comme "lavoituredujour" = plus de chance d'être disponibles
-    if (domainName.length >= 10 && !isShortName) availabilityScore += 0.3;
+    // Bonus pour disponibilité
+    if (rareExtensions.includes(extension)) availabilityScore += 0.3;
+    if (isLongName) availabilityScore += 0.4; // Bonus important pour noms longs
+    if (domainName.includes('-')) availabilityScore += 0.3; // Tirets = plus disponible
+    if (/\d/.test(domainName)) availabilityScore += 0.2; // Chiffres = plus disponible
+    
+    // Bonus spécial pour domaines très spécifiques (comme "lavoituredujour")
+    if (domainName.length >= 12 && !hasCommonWord && !isDictionaryWord) {
+      availabilityScore += 0.5; // Gros bonus
+    }
+    
+    // Cas spéciaux connus
+    const knownUnavailable = ['mercatolico', 'google', 'facebook', 'amazon', 'microsoft'];
+    if (knownUnavailable.some(word => domainName.includes(word))) {
+      availabilityScore = 0.1; // Quasi-certain d'être pris
+    }
     
     console.log(`📊 Score de disponibilité: ${availabilityScore} (${availabilityScore > 0.5 ? 'DISPONIBLE' : 'NON DISPONIBLE'})`);
     
